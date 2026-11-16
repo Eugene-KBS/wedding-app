@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "id": "d11",
+      "updatedAt": "2026-11-12T02:30:00.000Z",
+      "updatedBy": "婚顧",
+      "deleted": false,
+      "code": "D-01",
+      "title": "場地用哪一間",
+      "category": "場地",
+      "status": "已決定",
+      "viewE": "示範花園餐廳交通方便，停車也容易。",
+      "viewS": "喜歡它的戶外草地，擔心下雨要有備案。",
+      "resolution": "選示範花園餐廳，並確認雨天備案廳。",
+      "next": "T-01 確認訂金",
+      "due": "2026-11-05",
+      "source": "示範"
+    },
+    {
+      "id": "d12",
+      "updatedAt": "2026-11-13T03:30:00.000Z",
+      "updatedBy": "E",
+      "deleted": false,
+      "code": "D-02",
+      "title": "要不要辦兩場宴客",
+      "category": "宴客",
+      "status": "討論中",
+      "viewE": "一場就好，簡單一點，比較不累。",
+      "viewS": "南北各一場，長輩比較方便出席。",
+      "resolution": "",
+      "next": "各自列出兩場的人數與預算再比較",
+      "due": "2026-12-15",
+      "source": "示範"
+    },
+    {
+      "id": "d13",
+      "updatedAt": "2026-11-14T04:30:00.000Z",
+      "updatedBy": "S",
+      "deleted": false,
+      "code": "D-03",
+      "title": "晚宴用現場樂團還是播放音樂",
+      "category": "音樂",
+      "status": "待討論",
+      "viewE": "想要現場演奏，氣氛比較好。",
+      "viewS": "",
+      "resolution": "",
+      "next": "",
+      "due": null,
+      "source": "示範"
+    },
+    {
+      "id": "d14",
+      "updatedAt": "2026-11-15T05:30:00.000Z",
+      "updatedBy": "婚顧",
+      "deleted": false,
+      "code": "D-04",
+      "title": "喜帖紙本或電子",
+      "category": "賓客",
+      "status": "待討論",
+      "viewE": "",
+      "viewS": "長輩需要紙本，年輕朋友電子即可。",
+      "resolution": "",
+      "next": "",
+      "due": "2027-04-01",
+      "source": "示範"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "title": "示範婚禮",
+  "date": "2027-10-10",
+  "time": "17:30",
+  "venue": "示範花園餐廳",
+  "city": "示範市",
+  "groom": "王小明",
+  "bride": "李小美",
+  "budgetTotal": 800000,
+  "perTable": 10,
+  "sides": [
+    {
+      "id": "groom",
+      "label": "男方"
+    },
+    {
+      "id": "bride",
+      "label": "女方"
+    }
+  ],
+  "updatedAt": "2026-11-14T09:00:00.000Z",
+  "updatedBy": "E"
+}

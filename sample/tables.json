@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "id": "tb1",
+      "updatedAt": "2026-11-01T03:30:00.000Z",
+      "updatedBy": "E",
+      "deleted": false,
+      "name": "第 1 桌（男方親戚）",
+      "capacity": 10,
+      "note": ""
+    },
+    {
+      "id": "tb2",
+      "updatedAt": "2026-11-02T04:30:00.000Z",
+      "updatedBy": "S",
+      "deleted": false,
+      "name": "第 2 桌（朋友）",
+      "capacity": 10,
+      "note": "靠近舞台"
+    },
+    {
+      "id": "tb3",
+      "updatedAt": "2026-11-03T05:30:00.000Z",
+      "updatedBy": "婚顧",
+      "deleted": false,
+      "name": "第 3 桌（女方家人）",
+      "capacity": 10,
+      "note": ""
+    }
+  ]
+}

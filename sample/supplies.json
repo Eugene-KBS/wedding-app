@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "id": "su48",
+      "updatedAt": "2026-11-04T03:30:00.000Z",
+      "updatedBy": "E",
+      "deleted": false,
+      "name": "簽到本與筆",
+      "qty": 1,
+      "owner": "S",
+      "done": true,
+      "note": ""
+    },
+    {
+      "id": "su49",
+      "updatedAt": "2026-11-05T04:30:00.000Z",
+      "updatedBy": "S",
+      "deleted": false,
+      "name": "喜糖盒",
+      "qty": 120,
+      "owner": "E",
+      "done": false,
+      "note": "數量待確認"
+    },
+    {
+      "id": "su50",
+      "updatedAt": "2026-11-06T05:30:00.000Z",
+      "updatedBy": "婚顧",
+      "deleted": false,
+      "name": "備用雨傘",
+      "qty": 10,
+      "owner": "兩人",
+      "done": false,
+      "note": ""
+    },
+    {
+      "id": "su51",
+      "updatedAt": "2026-11-07T06:30:00.000Z",
+      "updatedBy": "E",
+      "deleted": false,
+      "name": "急救小包",
+      "qty": 1,
+      "owner": "S",
+      "done": false,
+      "note": "含針線、貼布"
+    }
+  ]
+}

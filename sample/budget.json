@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "categories": [
+    {
+      "id": "c1",
+      "name": "場地與餐飲",
+      "allocation": 400000,
+      "order": 1
+    },
+    {
+      "id": "c2",
+      "name": "攝影與紀錄",
+      "allocation": 100000,
+      "order": 2
+    },
+    {
+      "id": "c3",
+      "name": "服裝造型",
+      "allocation": 120000,
+      "order": 3
+    },
+    {
+      "id": "c4",
+      "name": "音樂與佈置",
+      "allocation": 80000,
+      "order": 4
+    }
+  ],
+  "records": [
+    {
+      "id": "b15",
+      "updatedAt": "2026-11-01T06:30:00.000Z",
+      "updatedBy": "E",
+      "deleted": false,
+      "name": "示範花園餐廳 場地與餐飲",
+      "categoryId": "c1",
+      "vendorId": "v1",
+      "quote": 380000,
+      "payments": [
+        {
+          "id": "p1",
+          "date": "2026-10-20",
+          "amount": 50000,
+          "note": "訂金"
+        }
+      ],
+      "due": "2027-09-10",
+      "note": "尾款於婚禮前一個月結清"
+    },
+    {
+      "id": "b16",
+      "updatedAt": "2026-11-02T07:30:00.000Z",
+      "updatedBy": "S",
+      "deleted": false,
+      "name": "示範攝影工作室",
+      "categoryId": "c2",
+      "vendorId": "v2",
+      "quote": null,
+      "payments": [],
+      "due": null,
+      "note": "尚未報價"
+    },
+    {
+      "id": "b17",
+      "updatedAt": "2026-11-03T08:30:00.000Z",
+      "updatedBy": "婚顧",
+      "deleted": false,
+      "name": "示範婚紗禮服租借",
+      "categoryId": "c3",
+      "vendorId": "",
+      "quote": 90000,
+      "payments": [
+        {
+          "id": "p2",
+          "date": "2026-11-02",
+          "amount": 10000,
+          "note": "預約金"
+        },
+        {
+          "id": "p3",
+          "date": "2026-11-12",
+          "amount": 20000,
+          "note": "第二期"
+        }
+      ],
+      "due": "2027-06-01",
+      "note": ""
+    },
+    {
+      "id": "b18",
+      "updatedAt": "2026-11-04T00:30:00.000Z",
+      "updatedBy": "E",
+      "deleted": false,
+      "name": "示範樂團演出費",
+      "categoryId": "c4",
+      "vendorId": "v3",
+      "quote": 45000,
+      "payments": [],
+      "due": "2027-09-01",
+      "note": "含音響"
+    },
+    {
+      "id": "b19",
+      "updatedAt": "2026-11-05T01:30:00.000Z",
+      "updatedBy": "S",
+      "deleted": false,
+      "name": "示範花藝佈置",
+      "categoryId": "c4",
+      "vendorId": "",
+      "quote": null,
+      "payments": [
+        {
+          "id": "p4",
+          "date": "2026-11-08",
+          "amount": 3000,
+          "note": "丈量場地費"
+        }
+      ],
+      "due": null,
+      "note": "報價未到，先付了丈量費"
+    }
+  ]
+}

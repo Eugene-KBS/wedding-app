@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "id": "v1",
+      "updatedAt": "2026-11-07T00:30:00.000Z",
+      "updatedBy": "E",
+      "deleted": false,
+      "name": "示範花園餐廳",
+      "role": "場地",
+      "contact": "示範窗口 小陳",
+      "channel": "LINE",
+      "status": "已簽約",
+      "note": "雨天備案廳另計",
+      "links": [
+        {
+          "label": "官網",
+          "url": "https://example.com/venue"
+        }
+      ]
+    },
+    {
+      "id": "v2",
+      "updatedAt": "2026-11-08T01:30:00.000Z",
+      "updatedBy": "S",
+      "deleted": false,
+      "name": "示範攝影工作室",
+      "role": "攝影",
+      "contact": "示範窗口 阿志",
+      "channel": "Email",
+      "status": "洽談中",
+      "note": "等報價",
+      "links": []
+    },
+    {
+      "id": "v3",
+      "updatedAt": "2026-11-09T02:30:00.000Z",
+      "updatedBy": "婚顧",
+      "deleted": false,
+      "name": "示範樂團",
+      "role": "音樂",
+      "contact": "示範窗口 小琴",
+      "channel": "LINE",
+      "status": "已保留",
+      "note": "三人編制",
+      "links": [
+        {
+          "label": "試聽",
+          "url": "https://example.com/band"
+        },
+        {
+          "label": "簡介",
+          "url": "https://example.com/band-intro"
+        }
+      ]
+    },
+    {
+      "id": "v4",
+      "updatedAt": "2026-11-10T03:30:00.000Z",
+      "updatedBy": "E",
+      "deleted": false,
+      "name": "示範花藝工作室",
+      "role": "佈置",
+      "contact": "示範窗口 小花",
+      "channel": "電話",
+      "status": "洽談中",
+      "note": "",
+      "links": []
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "records": [
+    {
+      "id": "gf33",
+      "updatedAt": "2026-11-04T06:30:00.000Z",
+      "updatedBy": "E",
+      "deleted": false,
+      "name": "王大華",
+      "guestId": "g20",
+      "amount": 6000,
+      "receivedAt": "2026-11-10",
+      "note": "示範資料"
+    },
+    {
+      "id": "gf34",
+      "updatedAt": "2026-11-05T07:30:00.000Z",
+      "updatedBy": "S",
+      "deleted": false,
+      "name": "李美惠",
+      "guestId": "g24",
+      "amount": 3600,
+      "receivedAt": "2026-11-11",
+      "note": ""
+    },
+    {
+      "id": "gf35",
+      "updatedAt": "2026-11-06T08:30:00.000Z",
+      "updatedBy": "婚顧",
+      "deleted": false,
+      "name": "示範贊助者",
+      "guestId": "",
+      "amount": 2000,
+      "receivedAt": null,
+      "note": "尚未入簿"
+    }
+  ]
+}
