@@ -1,9 +1,9 @@
 /* 婚禮手帳 Service Worker：外殼 cache-first（帶版本號）；api.github.com 一律走網路 */
-var VERSION = '0.1.0';
+var VERSION = '0.2.0';
 var CACHE = 'wedding-app-shell-' + VERSION;
 var SHELL = [
   './', 'index.html', 'manifest.webmanifest', 'css/app.css',
-  'js/config.js', 'js/util.js', 'js/schema.js', 'js/merge.js', 'js/calc.js', 'js/store-local.js', 'js/store-github.js', 'js/sync.js', 'js/ui.js',
+  'js/config.js', 'js/util.js', 'js/schema.js', 'js/merge.js', 'js/calc.js', 'js/store-local.js', 'js/store-github.js', 'js/sync.js', 'js/ui.js', 'js/native.js',
   'js/view-overview.js', 'js/view-tasks.js', 'js/view-budget.js', 'js/view-guests.js', 'js/view-more.js', 'js/view-schedule.js',
   'js/view-vendors.js', 'js/view-music.js', 'js/view-tables.js', 'js/view-settings.js', 'js/main.js',
   'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',

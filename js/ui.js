@@ -119,6 +119,7 @@
     });
     api.body = body; api.foot = foot; api.panel = panel;
     api.setDirty = function (v) { dirty = v; };
+    dragToDismiss(panel, back, api, function () { return dirty; });
     api.close = function () {
       if (closed) return; closed = true;
       panel.classList.remove('show'); back.classList.remove('show');
@@ -136,18 +137,69 @@
   };
   UI.closeAllSheets = function () { sheetStack.slice().forEach(function (s) { s.close(); }); };
 
-  /* 鍵盤遮擋：用 visualViewport 把表單抬到鍵盤上方 */
+  /* 表單上緣（把手＋標題列）往下拖：超過門檻或快速下滑就關閉；有未存修改時先確認 */
+  function dragToDismiss(panel, back, api, isDirty) {
+    var head = panel.querySelector('.sheet-head'), y0 = null, dy = 0, t0 = 0, moved = false;
+    function snap() { panel.style.transform = ''; back.style.opacity = ''; }
+    head.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1 || (e.target.closest && e.target.closest('.x'))) return;
+      y0 = e.touches[0].clientY; dy = 0; t0 = Date.now(); moved = false;
+    }, { passive: true });
+    head.addEventListener('touchmove', function (e) {
+      if (y0 === null) return;
+      dy = Math.max(0, e.touches[0].clientY - y0);
+      if (!moved && dy < 4) return;
+      moved = true; panel.classList.add('dragging');
+      panel.style.transform = 'translateY(' + dy + 'px)';
+      back.style.opacity = String(Math.max(0.15, 1 - dy / 420));
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    function end() {
+      if (y0 === null) return;
+      y0 = null; panel.classList.remove('dragging');
+      if (!moved) return;
+      var speed = dy / Math.max(1, Date.now() - t0);
+      if (dy > 110 || (speed > 0.6 && dy > 40)) {
+        if (isDirty()) { snap(); api.tryClose(); return; }
+        panel.style.transform = 'translateY(100%)'; back.style.opacity = '';
+        api.close();
+      } else snap();
+    }
+    head.addEventListener('touchend', end);
+    head.addEventListener('touchcancel', end);
+  }
+
+  /* 震動回饋：Android 用 vibrate；iPhone（iOS 18+）沒有 vibrate，借用原生開關切換時的系統觸覺 */
+  UI.isIOS = typeof navigator !== 'undefined' && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+  var hapticLabel = null;
+  UI.haptic = function () {
+    try {
+      if (navigator.vibrate) { navigator.vibrate(10); return; }
+      if (!UI.isIOS) return;
+      if (!hapticLabel) {
+        hapticLabel = h('label', { 'aria-hidden': 'true', style: 'position:fixed;left:-200px;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none' },
+          h('input', { type: 'checkbox', switch: true, tabindex: '-1' }));
+        document.body.appendChild(hapticLabel);
+      }
+      hapticLabel.click();
+    } catch (e) { /* 不支援就安靜略過 */ }
+  };
+
+  /* 鍵盤遮擋：用 visualViewport 把表單抬到鍵盤上方；鍵盤收起後把被 iOS 推上去的整頁拉回原位 */
   UI.watchKeyboard = function () {
     var vv = root.visualViewport;
+    function kbHeight() { return vv ? Math.max(0, root.innerHeight - vv.height - vv.offsetTop) : 0; }
+    function resetDoc() { if (kbHeight() <= 80 && (root.scrollY || root.pageYOffset)) root.scrollTo(0, 0); }
     function upd() {
-      var kb = 0, vh = root.innerHeight;
-      if (vv) { kb = Math.max(0, root.innerHeight - vv.height - vv.offsetTop); vh = vv.height; }
+      var kb = kbHeight(), vh = vv ? vv.height : root.innerHeight;
       document.documentElement.style.setProperty('--kb', (kb > 80 ? kb : 0) + 'px');
       document.documentElement.style.setProperty('--vvh', vh + 'px');
       document.body.classList.toggle('kb-open', kb > 80);
+      resetDoc();
     }
     if (vv) { vv.addEventListener('resize', upd); vv.addEventListener('scroll', upd); }
     root.addEventListener('resize', upd);
+    document.addEventListener('focusout', function () { setTimeout(resetDoc, 150); });
     upd();
   };
 
@@ -234,8 +286,9 @@
         el = UI.seg(f.options, value === undefined ? (f.options[0].v !== undefined ? f.options[0].v : f.options[0]) : value);
         c.el = el; c.get = function () { return { value: el.value }; }; break;
       case 'toggle':
-        el = h('input', { type: 'checkbox' }); el.checked = !!value;
-        c.el = h('label', { class: 'toggle' }, el, f.label); c.get = function () { return { value: el.checked }; }; break;
+        /* switch 屬性：iPhone Safari 17.4+ 顯示原生開關（iOS 18 起切換有震動回饋）；其他瀏覽器仍是核取方塊 */
+        el = h('input', { type: 'checkbox', switch: true }); el.checked = !!value;
+        c.el = h('label', { class: 'toggle switch-row' }, h('span', null, f.label), el); c.get = function () { return { value: el.checked }; }; break;
       case 'payments': buildPayments(f, value, c); break;
       case 'links': buildLinks(value, c); break;
       case 'picker': buildPicker(f, value, c); break;
@@ -307,16 +360,24 @@
 
   /* ---------- 匯出：先試 Blob 下載，同時一定提供頁內面板（顯示內容＋複製） ---------- */
   UI.exportPanel = function (o) {
+    /* 支援系統分享（iPhone）就用分享表單存到「檔案」或 AirDrop；不支援才自動下載 */
+    var content = o.bom ? '﻿' + o.text : o.text, file = null, canShare = false;
     try {
-      var blob = new Blob([o.bom ? '﻿' + o.text : o.text], { type: o.mime || 'text/plain;charset=utf-8' });
-      var url = URL.createObjectURL(blob);
-      var a = h('a', { href: url, download: o.filename, style: 'display:none' });
-      document.body.appendChild(a); a.click();
-      setTimeout(function () { a.remove(); URL.revokeObjectURL(url); }, 4000);
-    } catch (e) { /* 下載被擋：改用下方面板 */ }
+      file = new File([content], o.filename, { type: o.mime || 'text/plain;charset=utf-8' });
+      canShare = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
+    } catch (e) { canShare = false; }
+    if (!canShare) {
+      try {
+        var blob = new Blob([content], { type: o.mime || 'text/plain;charset=utf-8' });
+        var url = URL.createObjectURL(blob);
+        var a = h('a', { href: url, download: o.filename, style: 'display:none' });
+        document.body.appendChild(a); a.click();
+        setTimeout(function () { a.remove(); URL.revokeObjectURL(url); }, 4000);
+      } catch (e) { /* 下載被擋：改用下方面板 */ }
+    }
     var sheet = UI.sheet({ title: o.title || '匯出' });
     var pre = h('pre', { class: 'export', tabindex: '0' }, o.text);
-    var msg = h('div', { class: 'hint', style: 'margin-top:8px' }, '若沒有自動下載，請按「複製」，再貼到備忘錄或檔案裡。');
+    var msg = h('div', { class: 'hint', style: 'margin-top:8px' }, canShare ? '按「分享」可存到「檔案」、用 AirDrop 或傳給對方；也可以按「複製」。' : '若沒有自動下載，請按「複製」，再貼到備忘錄或檔案裡。');
     function selectAll() {
       try { var r = document.createRange(); r.selectNodeContents(pre); var s = root.getSelection(); s.removeAllRanges(); s.addRange(r); } catch (e) { /* ignore */ }
     }
@@ -333,8 +394,16 @@
     } }, '複製');
     sheet.body.appendChild(h('div', { class: 'small muted', style: 'margin-bottom:8px' }, o.filename + '（' + U.fmtNum(o.text.length) + ' 字）'));
     sheet.body.appendChild(pre); sheet.body.appendChild(msg);
-    sheet.foot.appendChild(h('button', { class: 'btn', type: 'button', onclick: selectAll }, '全選'));
-    sheet.foot.appendChild(copyBtn);
+    if (canShare) {
+      copyBtn.classList.remove('primary');
+      sheet.foot.appendChild(copyBtn);
+      sheet.foot.appendChild(h('button', { class: 'btn primary', type: 'button', onclick: function () {
+        navigator.share({ files: [file], title: o.filename }).catch(function (e) { if (!e || e.name !== 'AbortError') msg.textContent = '無法開啟分享，請改按「複製」。'; });
+      } }, '分享…'));
+    } else {
+      sheet.foot.appendChild(h('button', { class: 'btn', type: 'button', onclick: selectAll }, '全選'));
+      sheet.foot.appendChild(copyBtn);
+    }
     sheet.foot.appendChild(h('button', { class: 'btn', type: 'button', onclick: function () { sheet.close(); } }, '關閉'));
     return sheet;
   };

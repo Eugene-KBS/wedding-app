@@ -2,7 +2,8 @@
 (function (root) {
   var W = root.WApp = root.WApp || {};
   var U = W.util, UI = W.ui, h = UI.h, S = W.schema, cfg = W.config;
-  var A = W.app = { views: (W.routes = W.routes || {}), state: {}, mode: 'demo', who: 'E', store: null, sync: null, settings: {}, sampleError: null, sampleLoading: false };
+  var A = W.app = { views: (W.routes = W.routes || {}), state: {}, mode: 'demo', who: 'E', store: null, sync: null, settings: {}, sampleError: null, sampleLoading: false,
+    scrollMem: {}, tabLast: {} };
 
   var SETTINGS_KEY = 'wapp:settings';
   var TABS = [
@@ -26,26 +27,40 @@
     return /^[a-z0-9-]+$/.test(n) && A.views[n] ? n : '';
   }
   A.routeName = function () { return (A.currentRoute && A.views[A.currentRoute]) ? A.currentRoute : (hashName() || 'overview'); };
-  /* 頁面切換不依賴網址：狀態放記憶體，hash 只是盡力同步（沙盒 iframe 裡可能不能改） */
-  A.go = function (name) {
-    var same = A.currentRoute === name;
+  /* 頁面切換不依賴網址：狀態放記憶體，hash 只是盡力同步（沙盒 iframe 裡可能不能改）
+     o.anim：'push' 進入下一層、'pop' 返回；沒指定時依 parent 關係自動判斷，分頁之間切換不加動畫。
+     每頁記住捲動位置：返回或切回分頁時回到原處；進入下一層一律從頂端開始。 */
+  A.go = function (name, o) {
+    o = o || {};
+    var cur = A.currentRoute || A.routeName(), same = cur === name, viewEl = document.getElementById('view');
+    if (!same && A.views[cur]) A.scrollMem[cur] = viewEl.scrollTop;
+    var dir = same ? null : o.anim, tv = A.views[name], cv = A.views[cur];
+    if (!same && !dir) { if (tv && tv.parent === cur) dir = 'push'; else if (cv && cv.parent === name) dir = 'pop'; }
+    if (dir === 'push') delete A.scrollMem[name];
     A.currentRoute = name;
     UI.closeAllSheets();
     try { if (root.location.hash !== '#' + name) root.location.hash = '#' + name; } catch (e) { /* 忽略 */ }
-    A.render(same);
+    A.render(same, { anim: dir, restore: A.scrollMem[name] || 0 });
   };
   A.needsSetup = function () { return A.mode !== 'preview' && !A.settings.who; };
+  A.scrollTop = function (smooth) {
+    var v = document.getElementById('view');
+    try { v.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' }); } catch (e) { v.scrollTop = 0; }
+  };
 
-  A.render = function (keepScroll) {
-    var viewEl = document.getElementById('view'), titleEl = document.getElementById('title'), backEl = document.getElementById('back');
-    var active = document.activeElement, focusId = active && active.id, selS = null, selE = null, y = root.scrollY;
+  A.render = function (keepScroll, o) {
+    o = o || {};
+    var viewEl = document.getElementById('view'), titleEl = document.getElementById('title'), backEl = document.getElementById('back'), fabRoot = document.getElementById('fab-root');
+    var active = document.activeElement, focusId = active && active.id, selS = null, selE = null, y = viewEl.scrollTop;
     if (focusId && active.selectionStart !== undefined) { selS = active.selectionStart; selE = active.selectionEnd; }
     var tabbar = document.getElementById('tabbar');
-    viewEl.innerHTML = '';
+    viewEl.innerHTML = ''; fabRoot.innerHTML = '';
+    viewEl.classList.remove('anim-push', 'anim-pop');
     if (A.needsSetup()) {
       titleEl.textContent = cfg.appName; backEl.hidden = true; tabbar.style.display = 'none';
       A.renderBanner(); A.renderStatus();
       viewEl.appendChild(W.views.setupFirstRun());
+      viewEl.scrollTop = 0;
       return;
     }
     tabbar.style.display = '';
@@ -53,9 +68,16 @@
     titleEl.textContent = v.title;
     document.title = v.title + '｜' + cfg.appName;
     backEl.hidden = !v.parent;
-    backEl.onclick = function () { A.go(v.parent); };
+    if (v.parent) {
+      var pv = A.views[v.parent], pt = pv ? pv.title : '返回';
+      document.getElementById('back-label').textContent = pt;
+      backEl.setAttribute('aria-label', '返回' + pt);
+    }
+    backEl.onclick = function () { A.go(v.parent, { anim: 'pop' }); };
+    A.tabLast[v.tab] = name;
     A.renderTabs(v.tab);
     A.renderBanner(); A.renderStatus();
+    if (A.mode === 'live' && A.ptrEl) viewEl.appendChild(A.ptrEl);
     var gate = A.gate();
     try {
       if (gate) viewEl.appendChild(gate); else v.render(viewEl);
@@ -63,8 +85,11 @@
       viewEl.appendChild(UI.errorBox('這個畫面發生錯誤：' + (e && e.message ? e.message : e), '回到總覽', function () { A.go('overview'); }));
       if (root.console) console.error(e);
     }
-    if (keepScroll) root.scrollTo(0, y); else root.scrollTo(0, 0);
-    if (focusId) { var again = document.getElementById(focusId); if (again) { again.focus(); try { if (selS !== null) again.setSelectionRange(selS, selE); } catch (e2) { /* ignore */ } } }
+    /* 浮動按鈕移到 #view 外：換頁動畫與右滑返回時不會跟著位移 */
+    Array.prototype.slice.call(viewEl.children).forEach(function (c) { if (c.classList.contains('fab')) fabRoot.appendChild(c); });
+    viewEl.scrollTop = keepScroll ? y : (o.restore || 0);
+    if (o.anim === 'push' || o.anim === 'pop') { void viewEl.offsetWidth; viewEl.classList.add('anim-' + o.anim); }
+    if (focusId) { var again = document.getElementById(focusId); if (again) { again.focus({ preventScroll: true }); try { if (selS !== null) again.setSelectionRange(selS, selE); } catch (e2) { /* ignore */ } } }
   };
   var refreshQueued = false;
   A.refresh = function () {
@@ -92,8 +117,21 @@
     var tb = document.getElementById('tabbar');
     tb.innerHTML = '';
     TABS.forEach(function (t) {
-      tb.appendChild(h('a', { href: '#' + t.id, 'aria-current': t.id === active ? 'page' : null }, UI.icon(t.icon), h('span', null, t.label)));
+      tb.appendChild(h('a', { href: '#' + t.id, 'data-tab': t.id, 'aria-current': t.id === active ? 'page' : null }, UI.icon(t.icon), h('span', null, t.label)));
     });
+  };
+  /* 分頁列：切到別的分頁時回到它上次停留的頁面；再點一次目前分頁 → 回第一層，已在第一層就捲回頂端 */
+  A.onTabClick = function (e) {
+    var a = e.target.closest ? e.target.closest('a[data-tab]') : null;
+    if (!a) return;
+    e.preventDefault(); e.stopPropagation();
+    var tab = a.getAttribute('data-tab'), v = A.views[A.routeName()];
+    if (v && v.tab === tab) {
+      if (v.parent) A.go(tab, { anim: 'pop' }); else A.scrollTop(true);
+      return;
+    }
+    var last = A.tabLast[tab];
+    A.go(last && A.views[last] ? last : tab);
   };
 
   A.renderBanner = function () {
@@ -190,6 +228,7 @@
       if (A.mode === 'preview' || !('serviceWorker' in navigator) || !/^https?:$/.test(root.location.protocol)) return;
       navigator.serviceWorker.register('sw.js', { scope: './' }).then(function (reg) {
         function offer(worker) {
+          if (W.native) W.native.waiting = worker;   // 切到背景時自動換版
           var b = document.getElementById('banner');
           if (b.querySelector('.update')) return;
           b.appendChild(h('div', { class: 'banner update' }, h('span', null, '有新版本可用'),
@@ -210,8 +249,12 @@
   function boot() {
     try {
       UI.watchKeyboard();
+      A.ptrEl = h('div', { class: 'ptr', 'aria-hidden': 'true' }, h('i'), h('span', null, '下拉同步'));
+      if (W.native) W.native.init(A);
       document.getElementById('status').addEventListener('click', A.onStatusClick);
-      root.addEventListener('hashchange', function () { var n = hashName(); if (n && n !== A.currentRoute) { A.currentRoute = n; UI.closeAllSheets(); A.render(false); } });
+      document.getElementById('tabbar').addEventListener('click', A.onTabClick);
+      document.getElementById('title').addEventListener('click', function () { A.scrollTop(true); });
+      root.addEventListener('hashchange', function () { var n = hashName(); if (n && n !== A.currentRoute) A.go(n); });
       document.addEventListener('click', function (e) {
         var a = e.target.closest ? e.target.closest('a[href^="#"]') : null;
         if (!a) return;

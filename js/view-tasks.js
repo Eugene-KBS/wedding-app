@@ -31,6 +31,7 @@
 
   function toggle(t) {
     var A = W.app, nowDone = !t.done;
+    if (nowDone) UI.haptic();
     A.store.upsert('tasks', { id: t.id, done: nowDone, doneAt: nowDone ? U.nowIso() : null }, A.who);
     UI.toast(nowDone ? '已完成：' + t.title : '已還原為進行中', { action: { label: '復原', fn: function () { A.store.upsert('tasks', { id: t.id, done: !nowDone, doneAt: !nowDone ? U.nowIso() : null }, A.who); } } });
   }

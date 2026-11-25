@@ -11,7 +11,7 @@
     if (!who) Array.prototype.forEach.call(whoSeg.children, function (b) { b.setAttribute('aria-pressed', 'false'); });
     var whoErr = h('div', { class: 'err', style: 'color:var(--warn);font-size:13px;margin-top:4px' });
     var token = h('input', { class: 'input', id: 'token-input', type: 'password', autocomplete: 'off', autocapitalize: 'off', spellcheck: 'false', placeholder: 'github_pat_…' });
-    var show = h('label', { class: 'toggle', style: 'font-size:14px' }, h('input', { type: 'checkbox', onchange: function (e) { token.type = e.target.checked ? 'text' : 'password'; } }), '顯示 Token');
+    var show = h('label', { class: 'toggle', style: 'font-size:14px' }, h('input', { type: 'checkbox', switch: true, onchange: function (e) { token.type = e.target.checked ? 'text' : 'password'; } }), '顯示 Token');
     var result = h('div');
     var tested = null;
 

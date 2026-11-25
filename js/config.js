@@ -8,7 +8,7 @@
     dir: 'data',
     // 以下為 App 內部設定
     appName: '婚禮手帳',
-    version: '0.1.0',
+    version: '0.2.0',
     people: { E: '新郎', S: '新娘' },
     pushDelayMs: 1500,
     pollMs: 90000

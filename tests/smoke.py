@@ -1,10 +1,29 @@
-"""冒煙測試：python3 tests/smoke.py（需先在 /tmp/srv 以 python3 -m http.server 8765 提供 /wedding-app/）"""
+"""冒煙測試：python3 tests/smoke.py
+預設需先在 /tmp/srv 以 python3 -m http.server 8765 提供 /wedding-app/；
+環境不能開本機伺服器時用 SERVE_FS=1：由瀏覽器攔截請求直接讀本資料夾的檔案（SW 段落改用 context 攔截）。"""
 import json, re, sys, base64, os
 from playwright.sync_api import sync_playwright
 
 BASE = os.environ.get('BASE', 'http://127.0.0.1:8765/wedding-app/')
-SHOTS = os.path.join(os.path.dirname(__file__), '..', 'shots')
+APP = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+SERVE_FS = os.environ.get('SERVE_FS') == '1'
+SHOTS = os.path.join(APP, 'shots')
 os.makedirs(SHOTS, exist_ok=True)
+VERSION = re.search(r"version: '([^']+)'", open(os.path.join(APP, 'js', 'config.js'), encoding='utf-8').read()).group(1)
+
+def serve_fs(route):
+    """SERVE_FS 模式：BASE 底下的請求直接回本機檔案"""
+    path = route.request.url.split('?')[0].split('#')[0][len(BASE):] or 'index.html'
+    full = os.path.normpath(os.path.join(APP, path))
+    if not full.startswith(APP) or not os.path.isfile(full): return route.fulfill(status=404, body='not found')
+    types = {'.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.webmanifest': 'application/manifest+json', '.png': 'image/png', '.txt': 'text/plain'}
+    route.fulfill(status=200, path=full, content_type=types.get(os.path.splitext(full)[1], 'application/octet-stream'))
+
+TOUCH_JS = """window.__touch = function (el, type, x, y) {
+  var t = new Touch({ identifier: 7, target: el, clientX: x, clientY: y });
+  var end = type === 'touchend' || type === 'touchcancel';
+  el.dispatchEvent(new TouchEvent(type, { touches: end ? [] : [t], targetTouches: end ? [] : [t], changedTouches: [t], bubbles: true, cancelable: true }));
+};"""
 problems, checks = [], []
 
 def check(name, cond, extra=''):
@@ -25,6 +44,7 @@ with sync_playwright() as p:
     ext = []
     def route_ext(route):
         url = route.request.url
+        if SERVE_FS and url.startswith(BASE): return serve_fs(route)
         if '127.0.0.1' in url or 'localhost' in url: return route.continue_()
         ext.append(url); route.abort()
     page.route('**/*', route_ext)
@@ -36,8 +56,14 @@ with sync_playwright() as p:
 
     def shot(name): page.wait_for_timeout(350); page.screenshot(path=os.path.join(SHOTS, name + '.png'))
     def overflow(name):
-        w = page.evaluate('[document.documentElement.scrollWidth, window.innerWidth]')
-        check('無橫向溢出：' + name, w[0] <= w[1], w)
+        # v0.2 起整頁固定、內容在 #view 內捲動（#view 設 overflow-x:hidden，所以量 #view 本身）
+        w = page.evaluate('[document.documentElement.scrollWidth, window.innerWidth, document.getElementById("view").scrollWidth, document.getElementById("view").clientWidth]')
+        check('無橫向溢出：' + name, w[0] <= w[1] and w[2] <= w[3], w)
+    def route(): return page.evaluate('WApp.app.routeName()')
+    def vscroll(y=None):
+        if y is None: return page.evaluate('document.getElementById("view").scrollTop')
+        return page.evaluate('(function(y){var v=document.getElementById("view");v.scrollTop=y;return v.scrollTop;})(%d)' % y)
+    def touch(sel, kind, x, y): page.evaluate('([s,k,x,y]) => __touch(document.querySelector(s), k, x, y)', [sel, kind, x, y])
     def goto(h): page.evaluate("location.hash='#%s'" % h); page.wait_for_timeout(200)
     def field(label): return page.locator('.sheet .field', has_text=label).locator('input:not([type=checkbox]),textarea,select').first
     def save(): page.locator('.sheet-foot .btn.primary').click(); page.wait_for_timeout(450)
@@ -60,7 +86,66 @@ with sync_playwright() as p:
     check('倒數天數', page.locator('.hero .big').inner_text().strip()[0].isdigit())
     check('最近變更 8 筆', page.locator('.card:has(h2:has-text("最近變更")) a.row').count() == 8)
     shot('03-overview'); overflow('總覽')
-    full = page.evaluate('document.documentElement.scrollHeight')
+
+    # --- 原生 App 手感（v0.2）
+    page.add_script_tag(content=TOUCH_JS)
+    vp = page.get_attribute('meta[name=viewport]', 'content')
+    check('viewport 禁止縮放', 'user-scalable=no' in vp and 'maximum-scale=1' in vp, vp)
+    check('不自動把數字變電話連結', page.locator('meta[name=format-detection]').count() == 1)
+    ta = page.evaluate('getComputedStyle(document.body).touchAction')
+    check('touch-action 關閉雙擊與兩指縮放', ta in ('pan-x pan-y', 'manipulation'), ta)
+    sel = page.evaluate('[getComputedStyle(document.body).userSelect, getComputedStyle(document.querySelector("#tabbar a")).userSelect]')
+    check('介面文字不能被長按選取', sel == ['none', 'none'], sel)
+    check('整頁本身不捲動', page.evaluate('document.scrollingElement.scrollHeight <= window.innerHeight + 1'))
+    vscroll(400); page.wait_for_timeout(100)
+    bars = page.evaluate('[document.getElementById("topbar").getBoundingClientRect().top, Math.round(document.getElementById("tabbar").getBoundingClientRect().bottom), window.innerHeight]')
+    check('捲動內容時標題列與分頁列不動', vscroll() > 0 and bars[0] == 0 and bars[1] == bars[2], (vscroll(), bars))
+    page.click('#tabbar a[href="#overview"]'); page.wait_for_timeout(700)
+    check('再點目前分頁捲回頂端', vscroll() == 0, vscroll())
+    page.click('#tabbar a[href="#tasks"]'); page.wait_for_selector('.item')
+    check('浮動按鈕在 #view 之外', page.locator('#fab-root .fab').count() == 1 and page.locator('#view .fab').count() == 0)
+    y_tasks = vscroll(260); page.click('#tabbar a[href="#guests"]'); page.wait_for_selector('#guest-search')
+    check('切到別的分頁從頂端開始', vscroll() == 0, vscroll())
+    page.click('#tabbar a[href="#tasks"]'); page.wait_for_selector('.item')
+    check('切回分頁回到原本捲動位置', abs(vscroll() - y_tasks) <= 2 and y_tasks > 0, (y_tasks, vscroll()))
+    page.click('#tabbar a[href="#more"]'); page.wait_for_selector('.menu')
+    page.click('.menu a[href="#schedule"]'); page.wait_for_timeout(50)
+    check('進入下一層有滑入動畫', 'anim-push' in page.get_attribute('#view', 'class'))
+    check('返回鍵顯示上一層名稱', page.locator('#back').is_visible() and page.inner_text('#back-label') == '更多')
+    page.click('#tabbar a[href="#overview"]'); page.wait_for_selector('.hero')
+    page.click('#tabbar a[href="#more"]'); page.wait_for_timeout(200)
+    check('切回分頁回到上次停留的頁面', route() == 'schedule', route())
+    page.click('#tabbar a[href="#more"]'); page.wait_for_selector('.menu')
+    check('在下一層再點分頁回第一層', route() == 'more', route())
+    # 左緣右滑返回（模擬主畫面 App）
+    page.click('.menu a[href="#vendors"]'); page.wait_for_timeout(400)
+    page.evaluate('WApp.native.standalone = true')
+    touch('#view', 'touchstart', 6, 400); touch('#view', 'touchmove', 60, 402); touch('#view', 'touchmove', 260, 405); touch('#view', 'touchend', 260, 405)
+    page.wait_for_timeout(600)
+    check('左緣右滑返回上一層', route() == 'more', route())
+    page.evaluate('WApp.native.standalone = false')
+    page.click('.menu a[href="#vendors"]'); page.wait_for_timeout(400)
+    touch('#view', 'touchstart', 6, 400); touch('#view', 'touchmove', 260, 405); touch('#view', 'touchend', 260, 405); page.wait_for_timeout(500)
+    check('Safari 分頁裡不攔截右滑（交給瀏覽器）', route() == 'vendors', route())
+    # 按壓回饋
+    touch('.fab', 'touchstart', 300, 760); page.wait_for_timeout(120)
+    pressed = page.evaluate('document.querySelector(".fab").classList.contains("pressed")')
+    touch('.fab', 'touchend', 300, 760); page.wait_for_timeout(250)
+    check('按住按鈕有按壓回饋、放開後恢復', pressed and not page.evaluate('document.querySelector(".fab").classList.contains("pressed")'))
+    # 表單：把手往下拖關閉；有未存修改時先確認
+    page.click('.fab'); page.wait_for_selector('.sheet.show'); page.wait_for_timeout(300)
+    check('表單有上緣把手', page.evaluate('getComputedStyle(document.querySelector(".sheet-head"), "::before").content') not in ('none', 'normal', ''))
+    touch('.sheet-head', 'touchstart', 200, 120); touch('.sheet-head', 'touchmove', 200, 200); touch('.sheet-head', 'touchmove', 200, 330); touch('.sheet-head', 'touchend', 200, 330)
+    page.wait_for_timeout(450)
+    check('把手往下拖可關閉表單', page.locator('.sheet').count() == 0)
+    page.click('.fab'); page.wait_for_selector('.sheet.show'); page.wait_for_timeout(300)
+    field('廠商名稱').fill('拖曳測試')
+    touch('.sheet-head', 'touchstart', 200, 120); touch('.sheet-head', 'touchmove', 200, 330); touch('.sheet-head', 'touchend', 200, 330)
+    page.wait_for_selector('.dialog')
+    check('有未存修改時拖曳會先確認', '放棄修改' in page.inner_text('.dialog h3'))
+    page.click('.dialog .btn.danger'); page.wait_for_timeout(400)
+    page.click('#tabbar a[href="#more"]'); page.wait_for_selector('.menu')   # 回到「更多」第一層，後段測試從選單開始
+    page.click('#tabbar a[href="#overview"]'); page.wait_for_selector('.hero')
 
     # --- 待辦
     page.click('#tabbar a[href="#tasks"]'); page.wait_for_selector('.item')
@@ -113,6 +198,8 @@ with sync_playwright() as p:
     t0 = num(page.locator('.big-num').first.inner_text().split('人')[0])
     shot('09-guests'); overflow('賓客')
     page.click('.fab'); page.wait_for_selector('.sheet.show')
+    check('出席欄位用原生開關', page.locator('.sheet .switch-row input[switch]').count() == 3)
+    shot('09b-guest-form')
     field('姓名').fill('測試賓客'); field('人數').fill('3'); save()
     t1 = num(page.locator('.big-num').first.inner_text().split('人')[0])
     check('賓客總數 +3', t1 - t0 == 3, (t0, t1))
@@ -182,6 +269,7 @@ with sync_playwright() as p:
     check('切換時沒有 PUT', not any(x.startswith('PUT') for x in gh_log), gh_log)
     goto('overview'); page.wait_for_timeout(300)
     check('正式模式沒有示範橫幅', page.locator('.banner.demo').count() == 0)
+    check('正式模式有下拉同步提示', page.locator('#view > .ptr').count() == 1)
     shot('20-live-overview')
     # 在正式模式新增 → 1.5 秒內送出一次 PUT
     goto('tasks'); page.click('.fab'); page.wait_for_selector('.sheet.show'); field('要做什麼').fill('正式模式待辦'); save()
@@ -203,12 +291,18 @@ with sync_playwright() as p:
 
     # --- Service worker（獨立 context）
     ctx2 = b.new_context(viewport={'width': 390, 'height': 844})
+    if SERVE_FS: ctx2.route(BASE + '**', serve_fs)   # Chromium：context 攔截也涵蓋 service worker 的請求
     pg = ctx2.new_page(); pg.goto(BASE); pg.wait_for_selector('.setup')
-    pg.wait_for_function('navigator.serviceWorker.ready.then(r=>!!r.active)', timeout=10000)
-    scope = pg.evaluate('navigator.serviceWorker.getRegistration().then(r=>r.scope)')
-    check('SW 註冊且 scope 為子路徑', scope.endswith('/wedding-app/'), scope)
-    pg.wait_for_timeout(500); keys = pg.evaluate('caches.keys()')
-    check('SW 快取帶版本號', any('0.1.0' in k for k in keys), keys)
+    try:
+        pg.wait_for_function('navigator.serviceWorker.ready.then(r=>!!r.active)', timeout=10000)
+        scope = pg.evaluate('navigator.serviceWorker.getRegistration().then(r=>r.scope)')
+        check('SW 註冊且 scope 為子路徑', scope.endswith('/wedding-app/'), scope)
+        pg.wait_for_timeout(800); keys = pg.evaluate('caches.keys()')
+        check('SW 快取帶版本號 ' + VERSION, any(VERSION in k for k in keys), keys)
+        n = pg.evaluate('caches.open("wedding-app-shell-%s").then(c=>c.keys()).then(k=>k.length)' % VERSION)
+        check('SW 外殼檔案全部快取', n >= 39, n)
+    except Exception as e:
+        check('SW 註冊（%s）' % ('SERVE_FS 模式' if SERVE_FS else '伺服器'), False, str(e)[:200])
     ctx2.close(); b.close()
 
 passed = sum(1 for _, ok in checks if ok)
